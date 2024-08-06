@@ -1,5 +1,4 @@
 pipeline {
-  agent { label 'linux' }
   options {
     buildDiscarder(logRotator(numToKeepStr: '5'))
   }
@@ -10,18 +9,26 @@ pipeline {
   stages {
     stage('Build') {
       steps {
-        sh './mvnw clean install'
+        script {
+          // Run build command on the available node
+          sh './mvnw clean install'
+        }
       }
     }
     stage('Upload to Artifactory') {
-      agent {
-        docker {
-          image 'releases-docker.jfrog.io/jfrog/jfrog-cli-v2:2.2.0' 
-          reuseNode true
-        }
-      }
       steps {
-        sh 'jfrog rt upload --url https://yashaswi.jfrog.io/artifactory/ --access-token ${ARTIFACTORY_ACCESS_TOKEN} target/demo-0.0.1-SNAPSHOT.jar java-web-app/'
+        script {
+          // Run JFrog CLI commands using Docker directly
+          sh '''
+            docker run --rm \
+            -v $(pwd):/mnt \
+            -w /mnt \
+            releases-docker.jfrog.io/jfrog/jfrog-cli-v2:2.2.0 \
+            jfrog rt upload --url https://yashaswi.jfrog.io/artifactory/ \
+            --access-token ${ARTIFACTORY_ACCESS_TOKEN} \
+            target/demo-0.0.1-SNAPSHOT.jar java-web-app/
+          '''
+        }
       }
     }
   }
